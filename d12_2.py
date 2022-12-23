@@ -12,13 +12,11 @@ class Node:
 
 def run(lines: list[str]) -> int:
     area: dict[Pos, Node] = {}
-    start = (0, 0)
     end = (0, 0)
     inf = len(lines) * len(lines[0]) + 1
     for y in range(len(lines)):
         for x in range(len(lines[y])):
             if lines[y][x] == "S":
-                start = (x, y)
                 height = 0
             elif lines[y][x] == "E":
                 end = (x, y)
@@ -39,26 +37,36 @@ def run(lines: list[str]) -> int:
                     continue
                 if area[neigh].height - area[pos].height <= 1:
                     area[pos].next.append(neigh)
-    unvisited = set(area.keys())
-    area[start].cost_here = 0
-    current = start
-    while len(unvisited) > 0:
-        if current == end:
-            break
-        for n in area[current].next:
-            if n not in unvisited:
-                continue
-            new_dist = area[current].cost_here + 1
-            if new_dist < area[n].cost_here:
-                area[n].cost_here = new_dist
-        unvisited.remove(current)
-        min_unvisited_dist = inf
-        for n in unvisited:
-            if area[n].cost_here < min_unvisited_dist:
-                min_unvisited_dist = area[n].cost_here
-                current = n
 
-    return area[end].cost_here
+    zeros = [p for p in area.keys() if area[p].height == 0]
+    print(f"Found zeros: {len(zeros)}")
+    zc = 0
+    min_dis = inf
+    for zero in zeros:
+        zc += 1
+        if zc % 20 == 0:
+            print(f"zero count: {zc}")
+        unvisited = set(area.keys())
+        area[zero].cost_here = 0
+        current = zero
+        while len(unvisited) > 0:
+            if current == end:
+                break
+            for n in area[current].next:
+                if n not in unvisited:
+                    continue
+                new_dist = area[current].cost_here + 1
+                if new_dist < area[n].cost_here:
+                    area[n].cost_here = new_dist
+            unvisited.remove(current)
+            min_unvisited_dist = inf
+            for n in unvisited:
+                if area[n].cost_here < min_unvisited_dist:
+                    min_unvisited_dist = area[n].cost_here
+                    current = n
+        if area[end].cost_here < min_dis:
+            min_dis = area[end].cost_here
+    return min_dis
 
 
 def main() -> None:
@@ -75,7 +83,7 @@ abcryxxl
 accszExk
 acctuvwj
 abdefghi""".splitlines()
-    assert run(lines) == 31
+    assert run(lines) == 29
 
 
 if __name__ == "__main__":
