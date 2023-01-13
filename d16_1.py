@@ -85,7 +85,7 @@ def run(lines: list[str]) -> int:
             else:
                 found_better = False
                 for qs in q.queue:
-                    if qs.current_loc == ns.current_loc and set(qs.opened) == set(ns.opened) and qs.released > ns.released and \
+                    if qs.my_current_loc == ns.current_loc and set(qs.opened) == set(ns.opened) and qs.released > ns.released and \
                             qs.time_passed <= ns.time_passed:
                         found_better = True
                         break
