@@ -25,7 +25,7 @@ def eval_rec(m: Node, monkeys: dict[str, Node]) -> int:
     if m.op == "*":
         return left_val * right_val
     if m.op == "/":
-        return left_val / right_val
+        return left_val // right_val
     raise Exception("this shall not happen!")
 
 
