@@ -67,16 +67,20 @@ def run(lines: list[str]) -> int:
 
         to_check: list[World] = [((resources, robots), 0)]
         max_geodes = 0
+        zero_missing_best_time = 25
         while len(to_check) > 0:
             # world_now = to_check.pop()
             # find best state to expand
-            best_val, best_ind = 0, -1
+            best_val, best_ind = -1, -1
             for si in range(len(to_check)):
                 bots = to_check[si][0][1]
-                cur_val = 1000 * bots[3] + 100 * bots[2] + 10 * bots[1] + bots[0]
-                if cur_val > best_val:
-                    best_val = cur_val
+                missing_to_produce_geode_each_turn = [max(needed - have, 0) for have, needed in zip(bots, blueprint[Resources.GEODE])]
+                sum_missing = sum(missing_to_produce_geode_each_turn)
+                if best_ind == -1 or best_val > 0 >= sum_missing or (best_val == 0 and to_check[si][1] < zero_missing_best_time):
+                    best_val = sum_missing
                     best_ind = si
+                    if best_val == 0:
+                        zero_missing_best_time = to_check[si][1]
             selected_world = to_check[best_ind]
             to_check = to_check[:best_ind] + to_check[best_ind + 1:]
 
@@ -95,11 +99,14 @@ def run(lines: list[str]) -> int:
 
             # find next states
             next_worlds = list(next_vertices(selected_world))
-            if next_worlds and next_worlds[0][1] == max_time:
-                batch_max = max(w[0][1][Resources.GEODE] for w in next_worlds)
-                if batch_max > max_geodes:
-                    max_geodes = batch_max
-            to_check.extend(next_worlds)
+            if next_worlds:
+                print(f"Time: {next_worlds[0][1]}")
+                if next_worlds[0][1] == max_time:
+                    batch_max = max(w[0][1][Resources.GEODE] for w in next_worlds)
+                    if batch_max > max_geodes:
+                        max_geodes = batch_max
+                else:
+                    to_check.extend(next_worlds)
         blueprint_qualities[bid] = bid * max_geodes
     total = sum(blueprint_qualities.values())
     return total
