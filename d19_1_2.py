@@ -75,6 +75,7 @@ def run(lines: list[str]) -> int:
             for si in range(len(to_check)):
                 bots = to_check[si][0][1]
                 missing_to_produce_geode_each_turn = [max(needed - have, 0) for have, needed in zip(bots, blueprint[Resources.GEODE])]
+
                 sum_missing = sum(missing_to_produce_geode_each_turn)
                 if best_ind == -1 or best_val > 0 >= sum_missing or (best_val == 0 and to_check[si][1] < zero_missing_best_time):
                     best_val = sum_missing
