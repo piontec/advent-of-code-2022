@@ -1,0 +1,106 @@
+import re
+from enum import IntEnum
+from typing import Iterator
+import math
+
+import nographs as nog
+
+# X, Y
+Pos = tuple[int, int]
+# blizzard_pos, blizzard_type
+Blizzard = tuple[Pos, str]
+Blizzards = list[Blizzard]
+
+moves = (0, 0), (-1, 0), (0, -1), (1, 0), (0, 1)
+
+def run(lines: list[str]) -> int:
+    size = len(lines[0]), len(lines)
+
+    # parse entry
+    start_point = lines[0].find("."), 0
+    # parse exit
+    exit_point = lines[size[1] - 1].find("."), size[1] - 1
+    # parse the rest
+    starting_blizzards: Blizzards = []
+    for li in range(1, size[1] - 1):
+        line = lines[li]
+        for ci in range(1, len(line) - 1):
+           if line[ci] != ".":
+               starting_blizzards.append(((ci, li), line[ci]))
+    timed_blizzards: dict[int, Blizzards] = {0: starting_blizzards}
+
+    def get_blizzards_in_time(minute: int) -> Blizzards:
+        if minute in timed_blizzards:
+            return timed_blizzards[minute]
+        previous = get_blizzards_in_time(minute - 1)
+        new_blizzards: Blizzards = []
+
+        for bliz in previous:
+            bliz_loc, bliz_type = bliz
+            if bliz_type == ">":
+                new_x, new_y = bliz_loc[0] + 1, bliz_loc[1]
+                if new_x >= size[0] - 1:
+                    new_x = 1
+            elif bliz_type == "v":
+                new_x, new_y = bliz_loc[0], bliz_loc[1] + 1
+                if new_y >= size[1] - 1:
+                    new_y = 1
+            elif bliz_type == "<":
+                new_x, new_y = bliz_loc[0] - 1, bliz_loc[1]
+                if new_x == 0:
+                    new_x = size[0] - 2
+            elif bliz_type == "^":
+                new_x, new_y = bliz_loc[0], bliz_loc[1] - 1
+                if new_y == 0:
+                    new_y = size[1] - 2
+            new_bliz = (new_x, new_y), bliz_type
+            new_blizzards.append(new_bliz)
+        return new_blizzards
+            
+
+
+    def heuristic(vertex: Pos) -> float:
+         return math.dist(vertex, exit_point)
+
+    # gets vertex, returns iterable of vertex, distance
+    def next_edges(vertex: Pos, t) -> Iterator[tuple[Pos, int]]:
+         blizzards = get_blizzards_in_time(t.path_length + 1)
+         for move in moves:
+             new_pos = vertex[0] + move[0], vertex[1] + move[1]
+             if new_pos == exit_point:
+                 yield (new_pos), 1
+             # this assumes we never return to start_point
+             # check if we don't go into a wall
+             if new_pos[0] < 1 or new_pos[1] < 1 or new_pos[0] > size[0] - 2 or new_pos[1] > size[1] - 2:
+                 continue
+             # check if we don't go into a blizzard
+             if any(new_pos == b[0] for b in blizzards):
+                 continue
+             yield new_pos, 1
+
+    traversal = nog.TraversalAStar(next_edges, is_tree=True)
+    traversal.start_from(heuristic, start_point)
+    traversal.go_to(exit_point)
+    return traversal.path_length
+
+
+def main() -> None:
+    with open("i24.txt", "r") as i:
+        lines = i.readlines()
+    res = run(lines)
+    print(res)
+
+
+def test() -> None:
+    res = run("""#.######
+#>>.<^<#
+#.<..<<#
+#>v.><>#
+#<^v^^>#
+######.#""".splitlines())
+    assert res == 18
+
+
+if __name__ == "__main__":
+    test()
+    main()

@@ -26,6 +26,8 @@ def dec_to_snafu(n: int) -> str:
         n -= digit * 5 ** max_pow
         max_pow -= 1
         base_5.append(digit)
+    base_5_str = 
+    print(f"base_5: {".join(base_5)}")
     base_5_rev: list[int] = []
     for i in range(len(base_5) -1, -1, -1):
         base_5_rev.append(base_5[i])
@@ -49,6 +51,7 @@ def dec_to_snafu(n: int) -> str:
 
 def run(lines: list[str]) -> str:
     sum_dec = sum(snafu_to_dec(l.strip()) for l in lines)
+    print(f"dec sum: {sum_dec}")
     res = dec_to_snafu(sum_dec)
     return res
 
@@ -57,6 +60,7 @@ def main() -> None:
         lines = i.readlines()
     res = run(lines)
     print(res)
+    print(snafu_to_dec("2=-----11--01=-100"))
 
 
 def test() -> None:
