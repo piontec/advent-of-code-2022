@@ -13,37 +13,31 @@ def snafu_to_dec(snafu: str) -> int:
     return n
 
 def dec_to_snafu(n: int) -> str:
-    max_pow = 0
     rest = n
-    while True:
-        rest = n // 5 ** max_pow
-        if rest < 5:
-            break
-        max_pow += 1
     base_5: list[int] = []
-    while max_pow >= 0:
-        digit = n // 5 ** max_pow
-        n -= digit * 5 ** max_pow
-        max_pow -= 1
+    while rest > 0:
+        digit = rest % 5
+        rest //= 5
         base_5.append(digit)
-    base_5_str = 
-    print(f"base_5: {".join(base_5)}")
-    base_5_rev: list[int] = []
-    for i in range(len(base_5) -1, -1, -1):
-        base_5_rev.append(base_5[i])
     res = ""
-    for i in range(len(base_5_rev)):
-        if base_5_rev[i] <= 2:
-            res += str(base_5_rev[i])
+    i = 0
+    while i < len(base_5):
+        digit = base_5[i]
+        if digit <= 2:
+            res += str(digit)
         else: 
-            if base_5_rev[i] == 3:
+            if digit == 3:
                 res += "="
-            if base_5_rev[i] == 4:
+            elif digit == 4:
                 res += "-"
-            if i == len(base_5_rev) - 1:
-                base_5_rev.append(1)
+            elif digit == 5:
+                res += "0"
+
+            if i == len(base_5) - 1:
+                base_5.append(1)
             else:
-                base_5_rev[i + 1] += 1
+                base_5[i + 1] += 1
+        i += 1
     rev_res = ""
     for i in range(len(res) - 1, -1, -1):
         rev_res += res[i]
@@ -51,7 +45,6 @@ def dec_to_snafu(n: int) -> str:
 
 def run(lines: list[str]) -> str:
     sum_dec = sum(snafu_to_dec(l.strip()) for l in lines)
-    print(f"dec sum: {sum_dec}")
     res = dec_to_snafu(sum_dec)
     return res
 
@@ -60,10 +53,25 @@ def main() -> None:
         lines = i.readlines()
     res = run(lines)
     print(res)
-    print(snafu_to_dec("2=-----11--01=-100"))
 
 
 def test() -> None:
+    assert snafu_to_dec("1=-0-2") == 1747
+    assert snafu_to_dec("12111") == 906
+    assert snafu_to_dec("2=0=") == 198
+    assert snafu_to_dec("21") == 11
+    assert snafu_to_dec("2=01") == 201
+    assert snafu_to_dec("111") == 31
+    assert snafu_to_dec("20012") == 1257
+
+    assert dec_to_snafu(1747) == "1=-0-2"
+    assert dec_to_snafu(906) == "12111"
+    assert dec_to_snafu(198) == "2=0="
+    assert dec_to_snafu(11) == "21"
+    assert dec_to_snafu(201) == "2=01"
+    assert dec_to_snafu(31) == "111"
+    assert dec_to_snafu(1257) == "20012"
+
     res = run("""1=-0-2
 12111
 2=0=
