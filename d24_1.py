@@ -15,7 +15,7 @@ State = namedtuple('State', ['pos', 't'])
 moves = (0, 0), (-1, 0), (0, -1), (1, 0), (0, 1)
 
 def run(lines: list[str]) -> int:
-    size = len(lines[0]), len(lines)
+    size = len(lines[0].strip()), len(lines)
 
     # parse entry
     start_point = lines[0].find("."), 0
@@ -24,7 +24,7 @@ def run(lines: list[str]) -> int:
     # parse the rest
     starting_blizzards: Blizzards = []
     for li in range(1, size[1] - 1):
-        line = lines[li]
+        line = lines[li].strip()
         for ci in range(1, len(line) - 1):
            if line[ci] != ".":
                starting_blizzards.append(((ci, li), line[ci]))
