@@ -3,10 +3,7 @@ import re
 from enum import StrEnum
 from typing import cast
 
-class Pos(namedtuple):
-    x: int
-    y: int
-
+Pos = namedtuple("Pos", ["y", "x"])
 
 Map = list[list[str]]
 
@@ -107,7 +104,7 @@ def get_next_pos_and_dir(y: int, x: int, edge: int, new_edge: int, size: int) ->
 
 # noinspection PyCompatibility
 def find_next_pos(pos: Pos, direction: Dir, steps: int, maps: dict[int, Map], current_map_index: int, 
-                  edges: dict[int, dict[int, tuple[int, int]]]) -> Pos:
+                  edges: dict[int, dict[int, tuple[int, int]]], size: int) -> tuple[Pos, int, Dir]:
     assert steps > 0
 
     # noinspection PyCompatibility
@@ -126,9 +123,11 @@ def find_next_pos(pos: Pos, direction: Dir, steps: int, maps: dict[int, Map], cu
     new_y, new_x = pos
     last_pos = pos
     current_map = maps[current_map_index]
-    new_map_index = -1
+    new_map_index = current_map_index
     while steps_left > 0:
-        new_y, new_x = make_one_step((new_y, new_x), direction)
+        new_y, new_x = make_one_step(Pos(new_y, new_x), direction)
+        new_direction = direction
+        new_map_index = current_map_index
 
         # check for looping around
         # lets for now accept that the tentative_pos can be outside the current map
@@ -141,19 +140,20 @@ def find_next_pos(pos: Pos, direction: Dir, steps: int, maps: dict[int, Map], cu
             edge_num = dir_to_edge_num(direction)
             exit_mapping = edges[current_map_index][edge_num]
             new_map_index = exit_mapping[0]
-            new_y, new_x, new_direction = get_next_pos_and_dir(new_y, new_x, edge_num, exit_mapping[1])
+            new_y, new_x, new_direction = get_next_pos_and_dir(new_y, new_x, edge_num, exit_mapping[1], size)
 
         # check for a wall
         if maps[new_map_index][new_y][new_x] == "#":
-            return last_pos
+            return last_pos, current_map_index, direction
 
         assert maps[new_map_index][new_y][new_x] == "."
         # now we actually count the step
-        last_pos = (new_y, new_x)
-        current_map = maps[new_map_index]
+        last_pos = Pos(new_y, new_x)
+        current_map_index = new_map_index
+        current_map = maps[current_map_index]
         direction = new_direction
         steps_left -= 1
-    return last_pos
+    return last_pos, current_map_index, direction
 
 
 # noinspection PyCompatibility
@@ -190,9 +190,9 @@ def run(lines: list[str], size: int, sides_top_left_corners: dict[int, Pos],
 
     current_map = maps[current_map_index]
     current_dir = Dir.R
-    current_pos = (0, 0)
+    current_pos = Pos(0, 0)
     if current_map[current_pos.y][current_pos.x] == "#":
-        current_pos = find_next_pos((0, 0), current_dir, 1, maps, current_map_index, edges)
+        current_pos = find_next_pos((0, 0), current_dir, 1, maps, current_map_index, edges, size)
     while moves:
         m = re.match(r"\d+", moves)
         if not m:
@@ -204,7 +204,7 @@ def run(lines: list[str], size: int, sides_top_left_corners: dict[int, Pos],
             turn = cast(Turn, moves[m.end()])
         moves = moves[m.end() + 1:]
 
-        current_pos = find_next_pos(current_pos, current_dir, move_len, maps, current_map_index, edges)
+        current_pos, current_map_index, current_dir = find_next_pos(current_pos, current_dir, move_len, maps, current_map_index, edges, size)
         current_dir = get_new_dir(current_dir, turn)
 
     res = 1000 * (current_pos.y + 1) + 4 * (current_pos.x + 1)
@@ -224,7 +224,7 @@ def main() -> None:
     # single map size
     size = 50
     # top-left corner of each map
-    sides = {1: (0, 50), 2: (0, 100), 3: (50, 50), 4: (100, 0), 5: (100, 50), 6: (150, 0)}
+    sides = {1: Pos(0, 50), 2: Pos(0, 100), 3: Pos(50, 50), 4: Pos(100, 0), 5: Pos(100, 50), 6: Pos(150, 0)}
     # how edges are attached to each other; starting 0 from North and in input orientation; result is
     # in format (map, edge)
     edges = {
@@ -273,7 +273,7 @@ def test() -> None:
     # single map size
     size = 4
     # top-left corner of each map
-    sides = {1: (0, 8), 2: (4, 0), 3: (4, 4), 4: (4, 8), 5: (8, 8), 6: (8, 12)}
+    sides = {1: Pos(0, 8), 2: Pos(4, 0), 3: Pos(4, 4), 4: Pos(4, 8), 5: Pos(8, 8), 6: Pos(8, 12)}
     # how edges are attached to each other; starting 0 from N and in input orientation; result is
     # in format (map, edge)
     edges = {
@@ -305,7 +305,7 @@ def test() -> None:
             0: (4, 2),
             1: (6, 3),
             2: (2, 3),
-            3: (3, 2),
+            3: (2, 2),
         },
         6: {
             0: (4, 1),
