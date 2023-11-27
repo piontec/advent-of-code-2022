@@ -1,8 +1,14 @@
+from collections import namedtuple
 import re
 from enum import StrEnum
 from typing import cast
 
-Pos = tuple[int, int]
+class Pos(namedtuple):
+    x: int
+    y: int
+
+
+Map = list[list[str]]
 
 
 class Dir(StrEnum):
@@ -25,59 +31,127 @@ edge_to_dir = {
     3: Dir.R,
 }
 
+def parse_maps(area: dict[int, list[str]], size: int, sides_top_left_corners: dict[int, Pos]) -> tuple[dict[int, Map], int]:
+    maps: dict[int, Map] = {}
+    for map_index in range(1, 7):
+        new_map: list[list[str]] = []
+        top_left = sides_top_left_corners[map_index]
+        for tmp_y in range(top_left.y, top_left.y + size):
+            new_map.append(area[tmp_y][top_left.x : top_left.x + size])
+        maps[map_index] = new_map
+    # starting map is the one in the top-left corner
+    current_map_index = 1
+    return maps, current_map_index
+
+def dir_to_edge_num(direction: Dir) -> int:
+    if direction == Dir.U:
+        return 0
+    elif direction == Dir.R:
+        return 1
+    elif direction == Dir.D:
+        return 2
+    elif direction == Dir.L:
+        return 3
+    else:
+        raise ValueError("Invalid direction")
+
+def get_next_pos_and_dir(y: int, x: int, edge: int, new_edge: int, size: int) -> tuple[int, int, Dir]:
+    s_max = size - 1
+
+    if new_edge == 0:
+        if edge == 0:
+            return 0, s_max - x, Dir.D
+        elif edge == 1:
+            return 0, s_max - y, Dir.D
+        elif edge == 2:
+            return 0, x, Dir.D
+        elif edge == 3:
+            return 0, y, Dir.D
+        else:
+            raise ValueError("Invalid edge")
+    elif new_edge == 1:
+        if edge == 0:
+            return s_max - x, s_max, Dir.L
+        elif edge == 1:
+            return s_max - y, s_max, Dir.L
+        elif edge == 2:
+            return x, s_max, Dir.L
+        elif edge == 3:
+            return y, s_max, Dir.L
+        else:
+            raise ValueError("Invalid edge")
+    elif new_edge == 2:
+        if edge == 0:
+            return s_max, x, Dir.U
+        elif edge == 1:
+            return s_max, y, Dir.U
+        elif edge == 2:
+            return s_max, s_max - x, Dir.U
+        elif edge == 3:
+            return s_max, s_max - y, Dir.U
+        else:
+            raise ValueError("Invalid edge")
+    elif new_edge == 3:
+        if edge == 0:
+            return x, 0, Dir.R
+        elif edge == 1:
+            return y, 0, Dir.R
+        elif edge == 2:
+            return s_max - x, 0, Dir.R
+        elif edge == 3:
+            return s_max - y, 0, Dir.R
+        else:
+            raise ValueError("Invalid edge")
+    else:
+        raise ValueError("Invalid new edge")
 
 # noinspection PyCompatibility
-def find_next_pos(pos: Pos, direction: Dir, steps: int, area: dict[int, list[str]]) -> Pos:
+def find_next_pos(pos: Pos, direction: Dir, steps: int, maps: dict[int, Map], current_map_index: int, 
+                  edges: dict[int, dict[int, tuple[int, int]]]) -> Pos:
     assert steps > 0
 
     # noinspection PyCompatibility
     def make_one_step(p: Pos, d: Dir) -> Pos:
         match d:
             case Dir.U:
-                return p[0] - 1, p[1]
+                return p.y - 1, p.x
             case Dir.R:
-                return p[0], p[1] + 1
+                return p.y, p.x + 1
             case Dir.D:
-                return p[0] + 1, p[1]
+                return p.y + 1, p.x
             case Dir.L:
-                return p[0], p[1] - 1
+                return p.y, p.x - 1
 
     steps_left = steps
     new_y, new_x = pos
     last_pos = pos
+    current_map = maps[current_map_index]
+    new_map_index = -1
     while steps_left > 0:
         new_y, new_x = make_one_step((new_y, new_x), direction)
 
         # check for looping around
-        # lets for now accept that the tentative_pos can be outside valid area positions
-        # we got too far down
-        if new_y >= len(area) and direction == Dir.D:
-            new_y = 0
-        # we got too far up
-        elif new_y < 0 and direction == Dir.U:
-            new_y = len(area) - 1
-        # we got too far right
-        elif new_x >= len(area[new_y]) and direction == Dir.R:
-            new_x = 0
-        # too far left
-        elif new_x < 0 and direction == Dir.L:
-            new_x = len(area[new_y]) - 1
+        # lets for now accept that the tentative_pos can be outside the current map
 
-        # check for being outside valid area
-        # y coordinate is already in the correct range, we have to check if x in this row exists
-        if new_x > len(area[new_y]) - 1:
-            continue
-        # check for being "in the void"
-        if area[new_y][new_x] == " ":
-            continue
+
+        if (new_y >= len(current_map) and direction == Dir.D) \
+                or (new_y < 0 and direction == Dir.U) \
+                or (new_x >= len(current_map[new_y]) and direction == Dir.R) \
+                or (new_x < 0 and direction == Dir.L):
+            edge_num = dir_to_edge_num(direction)
+            exit_mapping = edges[current_map_index][edge_num]
+            new_map_index = exit_mapping[0]
+            new_y, new_x, new_direction = get_next_pos_and_dir(new_y, new_x, edge_num, exit_mapping[1])
 
         # check for a wall
-        if area[new_y][new_x] == "#":
+        if maps[new_map_index][new_y][new_x] == "#":
             return last_pos
 
-        assert area[new_y][new_x] == "."
+        assert maps[new_map_index][new_y][new_x] == "."
         # now we actually count the step
         last_pos = (new_y, new_x)
+        current_map = maps[new_map_index]
+        direction = new_direction
         steps_left -= 1
     return last_pos
 
@@ -102,7 +176,8 @@ def get_new_dir(current_dir: Dir, turn: Turn) -> Dir:
 
 
 # noinspection PyCompatibility
-def run(lines: list[str], size: tuple[int, int], sides: dict[int, Pos], edges: dict[int, dict[int, tuple[int, int]]]) -> int:
+def run(lines: list[str], size: int, sides_top_left_corners: dict[int, Pos], 
+        edges: dict[int, dict[int, tuple[int, int]]]) -> int:
     area: dict[int, list[str]] = {}
     li = 0
     for li in range(len(lines)):
@@ -111,11 +186,13 @@ def run(lines: list[str], size: tuple[int, int], sides: dict[int, Pos], edges: d
             break
         area[li] = list(line)
     moves = lines[li + 1].strip()
+    maps, current_map_index = parse_maps(area, size, sides_top_left_corners)
 
+    current_map = maps[current_map_index]
     current_dir = Dir.R
     current_pos = (0, 0)
-    if area[current_pos[0]][current_pos[1]] == " ":
-        current_pos = find_next_pos((0, 0), current_dir, 1, area)
+    if current_map[current_pos.y][current_pos.x] == "#":
+        current_pos = find_next_pos((0, 0), current_dir, 1, maps, current_map_index, edges)
     while moves:
         m = re.match(r"\d+", moves)
         if not m:
@@ -127,10 +204,10 @@ def run(lines: list[str], size: tuple[int, int], sides: dict[int, Pos], edges: d
             turn = cast(Turn, moves[m.end()])
         moves = moves[m.end() + 1:]
 
-        current_pos = find_next_pos(current_pos, current_dir, move_len, area)
+        current_pos = find_next_pos(current_pos, current_dir, move_len, maps, current_map_index, edges)
         current_dir = get_new_dir(current_dir, turn)
 
-    res = 1000 * (current_pos[0] + 1) + 4 * (current_pos[1] + 1)
+    res = 1000 * (current_pos.y + 1) + 4 * (current_pos.x + 1)
     match current_dir:
         case Dir.D:
             res += 1
@@ -145,11 +222,11 @@ def main() -> None:
     with open("i22.txt") as i:
         lines = i.readlines()
     # single map size
-    size = (50, 50)
+    size = 50
     # top-left corner of each map
     sides = {1: (0, 50), 2: (0, 100), 3: (50, 50), 4: (100, 0), 5: (100, 50), 6: (150, 0)}
-    # how edges are attached to each other; starting 0 from N and in input orientation; result is
-    # in format (map, edge, entry_dir)
+    # how edges are attached to each other; starting 0 from North and in input orientation; result is
+    # in format (map, edge)
     edges = {
         1: {
             0: (6, 3),
@@ -194,7 +271,7 @@ def main() -> None:
 
 def test() -> None:
     # single map size
-    size = (4, 4)
+    size = 4
     # top-left corner of each map
     sides = {1: (0, 8), 2: (4, 0), 3: (4, 4), 4: (4, 8), 5: (8, 8), 6: (8, 12)}
     # how edges are attached to each other; starting 0 from N and in input orientation; result is
