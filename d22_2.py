@@ -207,7 +207,8 @@ def run(lines: list[str], size: int, sides_top_left_corners: dict[int, Pos],
         current_pos, current_map_index, current_dir = find_next_pos(current_pos, current_dir, move_len, maps, current_map_index, edges, size)
         current_dir = get_new_dir(current_dir, turn)
 
-    res = 1000 * (current_pos.y + 1) + 4 * (current_pos.x + 1)
+    res = 1000 * (sides_top_left_corners[current_map_index][0] + current_pos.y + 1) \
+        + 4 * (sides_top_left_corners[current_map_index][1] + current_pos.x + 1)
     match current_dir:
         case Dir.D:
             res += 1
@@ -304,8 +305,8 @@ def test() -> None:
         5: {
             0: (4, 2),
             1: (6, 3),
-            2: (2, 3),
-            3: (2, 2),
+            2: (2, 2),
+            3: (3, 2),
         },
         6: {
             0: (4, 1),
