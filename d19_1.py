@@ -1,7 +1,6 @@
 import re
-from collections import deque
 from enum import IntEnum
-from queue import LifoQueue
+from time import perf_counter
 from typing import Iterator
 
 import numpy as np
@@ -82,29 +81,28 @@ def run(lines: list[str]) -> int:
             )
             return val
 
-        #    # best_val, best_ind = -1, -1
-        #    # for si in range(len(to_check)):
-        #    #    bots = to_check[si][0][1]
-        #    #    missing_to_produce_geode_each_turn = [max(needed - have, 0) for have, needed in zip(bots, blueprint[Resources.GEODE])]
-
-        #    #    sum_missing = sum(missing_to_produce_geode_each_turn)
-        #    #    if best_ind == -1 or best_val > 0 >= sum_missing or (best_val == 0 and to_check[si][1] < zero_missing_best_time):
-        #    #        best_val = sum_missing
-        #    #        best_ind = si
-        #    #        if best_val == 0:
-        #    #            zero_missing_best_time = to_check[si][1]
-        #    # selected_world = to_check[best_ind]
-        #    # to_check = to_check[:best_ind] + to_check[best_ind + 1:]
-
-        to_check = deque([current_world])
+        to_check: dict[bytes, World] = {current_world.tobytes(): current_world}
         checked: set[bytes] = set()
         max_geodes = 0
+        current_world = None
+        current_world_hash = None
         while len(to_check) > 0:
             # current_world = to_check.pop()
-            # use max heuristic to find the best value in the queue
-            current_world = max(to_check, key=heuristic)
-            to_check.remove(current_world)
-            checked.add(current_world.tobytes())
+            # use max heuristic to find the best value in the to_check dict
+            cwh = -1
+            for k, w in to_check.items():
+                if cwh == -1:
+                    current_world = w
+                    cwh = heuristic(w)
+                    current_world_hash = k
+                    continue
+                wh = heuristic(w)
+                if wh > cwh:
+                    current_world = w
+                    cwh = wh
+                    current_world_hash = k
+            del to_check[current_world_hash]
+            checked.add(current_world_hash)
 
             # check if we can ignore this state
             # ignore if we can't produce more geodes even in the best case scenario
@@ -121,15 +119,15 @@ def run(lines: list[str]) -> int:
                 if nw[W_TIME_INDEX] == max_time:
                     if nw[W_RES_SLICE][Resources.GEODE] > max_geodes:
                         max_geodes = nw[W_RES_SLICE][Resources.GEODE]
-                        print(
-                            f"Got new best: {max_geodes}; [{nw[W_TIME_INDEX]}], res: {nw[W_RES_SLICE]}, bots: {nw[W_BOTS_SLICE]}")
+                        print( f"BID {blueprint_id} got new best: {max_geodes}; [{nw[W_TIME_INDEX]}], res: {nw[W_RES_SLICE]}, bots: {nw[W_BOTS_SLICE]}, to_check: {len(to_check)}, checked: {len(checked)}")
                 else:
-                    nw_bytes = nw.tobytes()
-                    if nw_bytes in checked:
+                    nw_hash = nw.tobytes()
+                    if nw_hash in checked:
                         continue
-                    to_check.append(nw)
+                    to_check[nw_hash] = nw
 
         blueprint_qualities[blueprint_id] = blueprint_id * max_geodes
+        print(f"BID {blueprint_id} got: {max_geodes}")
     total = sum(blueprint_qualities.values())
     return total
 
@@ -150,5 +148,7 @@ Blueprint 2: Each ore robot costs 2 ore. Each clay robot costs 3 ore. Each obsid
 
 
 if __name__ == "__main__":
+    t1 = perf_counter()
     test()
-    main()
+    print(f"Time: {perf_counter() - t1}")
+    # main()
