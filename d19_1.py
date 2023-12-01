@@ -151,4 +151,4 @@ if __name__ == "__main__":
     t1 = perf_counter()
     test()
     print(f"Time: {perf_counter() - t1}")
-    # main()
+    main()
