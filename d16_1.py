@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from queue import Queue
+from time import perf_counter
 
 
 @dataclass
@@ -85,7 +86,7 @@ def run(lines: list[str]) -> int:
             else:
                 found_better = False
                 for qs in q.queue:
-                    if qs.my_current_loc == ns.current_loc and set(qs.opened) == set(ns.opened) and qs.released > ns.released and \
+                    if qs.current_loc == ns.current_loc and set(qs.opened) == set(ns.opened) and qs.released > ns.released and \
                             qs.time_passed <= ns.time_passed:
                         found_better = True
                         break
@@ -95,11 +96,13 @@ def run(lines: list[str]) -> int:
 
 
 def main() -> None:
+    t1 = perf_counter()
     with open("i16.txt", "r") as i:
         lines = i.readlines()
     lines = [l.rstrip('\n') for l in lines]
     res = run(lines)
     print(res)
+    print(f"Main time: {perf_counter() - t1}")
 
 
 def test() -> None:
