@@ -79,9 +79,10 @@ def run(lines: list[str], max_time: int = 30) -> int:
                 to_check[new_visited] = new_state
     return max(final_states.values())
 
+
 def main() -> None:
     t1 = perf_counter()
-    with open("i16.txt", "r") as i:
+    with open("i16.txt") as i:
         lines = i.readlines()
     lines = [l.rstrip('\n') for l in lines]
     res = run(lines)
