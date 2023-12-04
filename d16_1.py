@@ -1,5 +1,5 @@
+from collections import namedtuple
 from dataclasses import dataclass
-from queue import Queue
 from time import perf_counter
 
 
@@ -10,12 +10,7 @@ class Valve:
     next_valves: list[str]
 
 
-@dataclass
-class State:
-    current_loc: str
-    released: int
-    opened: list[str]
-    time_passed: int
+State = namedtuple("State", ['node', 'remaining_time', 'sum_flow'])
 
 
 def all_shortest_paths(valves: dict[str, Valve]) -> dict[str, dict[str, int]]:
@@ -35,35 +30,8 @@ def all_shortest_paths(valves: dict[str, Valve]) -> dict[str, dict[str, int]]:
 
     return res
 
-def next_states(s: State, valves: dict[str, Valve], shortest: dict[str, dict[str, int]]) -> list[State]:
-    ns: list[State] = []
-    flow_delta_per_sec = sum(v.flow for v in [valves[vl] for vl in s.opened])
-    released = s.released
-    new_opened = s.opened.copy()
-    time = s.time_passed
-    assert time < 30
 
-    # if only we can, we use 1 sec of time to open local valve
-    if s.current_loc not in s.opened and valves[s.current_loc].flow > 0:
-        new_opened.append(s.current_loc)
-        time += 1
-        released += flow_delta_per_sec
-        flow_delta_per_sec += valves[s.current_loc].flow
-
-    not_opened = [k for k in valves.keys() if k not in new_opened and valves[k].flow > 0]
-    if len(not_opened) > 0:
-        for nvl in not_opened:
-            time_delta = shortest[s.current_loc][nvl]
-            if time + time_delta > 30:
-                time_delta = 30 - time
-            ns.append(State(nvl, released + flow_delta_per_sec * time_delta, new_opened, time + time_delta))
-    else:
-        time_left = 30 - time
-        ns.append(State(s.current_loc, released + time_left * flow_delta_per_sec, new_opened, 30))
-    return ns
-
-
-def run(lines: list[str]) -> int:
+def run(lines: list[str], max_time: int = 30) -> int:
     valves: dict[str, Valve] = {}
     for line in lines:
         tmp = line.split(" ")
@@ -72,28 +40,44 @@ def run(lines: list[str]) -> int:
         nxt = [n.strip(",") for n in tmp[9:]]
         v = Valve(label, flow, list(nxt))
         valves[label] = v
-    state = State("AA", 0, [], 0)
     shortest_paths = all_shortest_paths(valves)
-    best = state
-    q = Queue()
-    q.put(state)
-    while len(q.queue) > 0:
-        s = q.get()
-        for ns in next_states(s, valves, shortest_paths):
-            if ns.time_passed == 30:
-                if ns.released > best.released:
-                    best = ns
-            else:
-                found_better = False
-                for qs in q.queue:
-                    if qs.current_loc == ns.current_loc and set(qs.opened) == set(ns.opened) and qs.released > ns.released and \
-                            qs.time_passed <= ns.time_passed:
-                        found_better = True
-                        break
-                if not found_better:
-                    q.put(ns)
-    return best.released
+    # filter out zero flow nodes
+    for k, v in valves.items():
+        valves[k].next_valves = [v for v in valves[k].next_valves if valves[v].flow > 0]
+    valves = {k: v for k, v in valves.items() if v.flow > 0 or k == "AA"}
+    valve_names = list(valves.keys())
+    flags = {v: 1 << flag for flag, v in enumerate(valves.keys())}
 
+    to_check = {flags["AA"]: State("AA", max_time, 0)}
+    final_states: dict[int, int] = {}
+    while to_check:
+        visited, state = to_check.popitem()
+        for v in valve_names:
+            if v == state.node:
+                continue
+            # we are note able to open this valve anymore
+            if state.remaining_time <= shortest_paths[state.node][v] + 1:
+                if visited in final_states:
+                    final_states[visited] = max(final_states[visited], state.sum_flow)
+                else:
+                    final_states[visited] = state.sum_flow
+                continue
+            # we already opened this valve
+            if visited & flags[v]:
+                continue
+            new_visited = visited | flags[v]
+            new_time = state.remaining_time - shortest_paths[state.node][v] - 1
+            new_flow = state.sum_flow + valves[v].flow * new_time
+            new_state = State(v, new_time, new_flow)
+            if new_visited in to_check:
+                if to_check[new_visited].sum_flow < new_flow:
+                    if to_check[new_visited].remaining_time <= new_time:
+                        to_check[new_visited] = new_state
+                    else:
+                        raise Exception("This should not happen")
+            else:
+                to_check[new_visited] = new_state
+    return max(final_states.values())
 
 def main() -> None:
     t1 = perf_counter()
